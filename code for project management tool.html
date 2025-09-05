@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Management Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for advanced UI interactions */
+        .project-card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .project-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .task-item { cursor: grab; transition: background 0.2s; }
+        .task-item:hover { background: #f0f9ff; }
+        .modal { opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .modal.active { opacity: 1; pointer-events: auto; }
+        .drag-over { background: #dbeafe; border: 2px dashed #3b82f6; }
+        .notification { animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Responsive enhancements */
+        @media (max-width: 768px) { .sidebar { position: relative; width: 100%; } .main-content { margin-left: 0; } }
+        /* Hide scrollbar but allow scroll */
+        .scrollable { scrollbar-width: none; -ms-overflow-style: none; }
+        .scrollable::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Project Management Tool</h1>
+            <button id="addProjectBtn" class="bg-green-500 hover:bg-green-600 px-4 py-2 rounded">Add Project</button>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="sidebar bg-gray-800 text-white w-64 min-h-screen p-4">
+            <h2 class="text-lg font-semibold mb-4">Projects</h2>
+            <ul id="projectList" class="space-y-2"></ul>
+            <h2 class="text-lg font-semibold mt-8 mb-4">Quick Actions</h2>
+            <button id="searchBtn" class="w-full bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded mb-2">Search Tasks</button>
+            <button id="filterBtn" class="w-full bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded">Filter by Status</button>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content flex-1 p-6">
+            <div id="projectView" class="hidden">
+                <h2 id="projectTitle" class="text-3xl font-bold mb-4"></h2>
+                <p id="projectDesc" class="text-gray-600 mb-6"></p>
+                <button id="addTaskBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mb-4">Add Task</button>
+                <div id="taskBoard" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white p-4 rounded shadow">
+                        <h3 class="text-lg font-semibold mb-2">To Do</h3>
+                        <div id="todoTasks" class="space-y-2 min-h-32">
+                            <!-- Tasks will be added here -->
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow">
+                        <h3 class="text-lg font-semibold mb-2">In Progress</h3>
+                        <div id="inprogressTasks" class="space-y-2 min-h-32">
+                            <!-- Tasks will be added here -->
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow">
+                        <h3 class="text-lg font-semibold mb-2">Done</h3>
+                        <div id="doneTasks" class="space-y-2 min-h-32">
+                            <!-- Tasks will be added here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="homeView">
+                <h2 class="text-3xl font-bold mb-4">Welcome to Your Project Tool</h2>
+                <p class="text-gray-600 mb-6">Manage your projects efficiently with real-time updates and interactive features.</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="projectCards">
+                    <!-- Project cards will be added here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="addProjectModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal">
+        <div class="bg-white p-6 rounded shadow-lg w-96">
+            <h3 class="text-xl font-bold mb-4">Add New Project</h3>
+            <input type="text" id="projectName" placeholder="Project Name" class="w-full p-2 border mb-4 rounded">
+            <textarea id="projectDescription" placeholder="Description" class="w-full p-2 border mb-4 rounded" rows="4"></textarea>
+            <button id="saveProjectBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Save Project</button>
+            <button id="cancelProjectBtn" class="ml-2 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">Cancel</button>
+        </div>
+    </div>
+
+    <div id="addTaskModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal">
+        <div class="bg-white p-6 rounded shadow-lg w-96">
+            <h3 class="text-xl font-bold mb-4">Add New Task</h3>
+            <input type="text" id="taskName" placeholder="Task Name" class="w-full p-2 border mb-4 rounded">
+            <textarea id="taskDescription" placeholder="Description" class="w-full p-2 border mb-4 rounded" rows="3"></textarea>
+            <select id="taskStatus" class="w-full p-2 border mb-4 rounded">
+                <option value="todo">To Do</option>
+                <option value="inprogress">In Progress</option>
+                <option value="done">Done</option>
+            </select>
+            <button id="saveTaskBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">Save Task</button>
+            <button id="cancelTaskBtn" class="ml-2 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">Cancel</button>
+        </div>
+    </div>
+
+    <div id="searchModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal">
+        <div class="bg-white p-6 rounded shadow-lg w-96">
+            <h3 class="text-xl font-bold mb-4">Search Tasks</h3>
+            <input type="text" id="searchInput" placeholder="Search tasks..." class="w-full p-2 border mb-4 rounded">
+            <div id="searchResults" class="max-h-40 overflow-y-auto space-y-2"></div>
+            <button id="closeSearchBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded w-full">Close</button>
+        </div>
+    </div>
+
+    <!-- Notifications -->
+    <div id="notification" class="fixed top-4 right-4 bg-green-500 text-white p-4 rounded shadow-lg notification hidden">
+        <p id="notifMsg">Action completed!</p>
+    </div>
+
+    <script>
+        // Global variables for data management
+        let projects = JSON.parse(localStorage.getItem('projects')) || [];
+        let currentProjectId = null;
+        let dragTask = null;
+
+        // Real-time updates using BroadcastChannel
+        const channel = new BroadcastChannel('project-updates');
+        channel.onmessage = (event) => {
+            if (event.data.type === 'update') {
+                loadProjects();
+                if (currentProjectId) loadProjectView(currentProjectId);
+            }
+        };
+
+        // Utility functions
+        function showNotification(msg) {
+            document.getElementById('notifMsg').textContent = msg;
+            document.getElementById('notification').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('notification').classList.add('hidden');
+            }, 3000);
+        }
+
+        function saveData() {
+            localStorage.setItem('projects', JSON.stringify(projects));
+            channel.postMessage({ type: 'update' });
+        }
+
+        function toggleModal(modalId, active) {
+            const modal = document.getElementById(modalId);
+            if (active) modal.classList.add('active');
+            else modal.classList.remove('active');
+        }
+
+        // Project creation
+        document.getElementById('addProjectBtn').addEventListener('click', () => toggleModal('addProjectModal', true));
+        document.getElementById('cancelProjectBtn').addEventListener('click', () => toggleModal('addProjectModal', false));
+        document.getElementById('saveProjectBtn').addEventListener('click', () => {
+            const name = document.getElementById('projectName').value.trim();
+            const desc = document.getElementById('projectDescription').value.trim();
+            if (name) {
+                const newProject = { id: Date.now(), name, description: desc, tasks: [] };
+                projects.push(newProject);
+                saveData();
+                showNotification('Project added successfully!');
+                toggleModal('addProjectModal', false);
+                document.getElementById('projectName').value = '';
+                document.getElementById('projectDescription').value = '';
+                loadProjects();
+            }
+        });
+
+        // Task creation
+        document.getElementById('addTaskBtn').addEventListener('click', () => toggleModal('addTaskModal', true));
+        document.getElementById('cancelTaskBtn').addEventListener('click', () => toggleModal('addTaskModal', false));
+        document.getElementById('saveTaskBtn').addEventListener('click', () => {
+            const name = document.getElementById('taskName').value.trim();
+            const desc = document.getElementById('taskDescription').value.trim();
+            const status = document.getElementById('taskStatus').value;
+            if (name && currentProjectId) {
+                const project = projects.find(p => p.id == currentProjectId);
+                project.tasks.push({ id: Date.now(), name, description: desc, status });
+                saveData();
+                showNotification('Task added successfully!');
+                toggleModal('addTaskModal', false);
+                document.getElementById('taskName').value = '';
+                document.getElementById('taskDescription').value = '';
+                loadProjectView(currentProjectId);
+            }
+        });
+
+        // Load projects list and cards
+        function loadProjects() {
+            const projectList = document.getElementById('projectList');
+            const projectCards = document.getElementById('projectCards');
+            projectList.innerHTML = '';
+            projectCards.innerHTML = '';
+            projects.forEach(project => {
+                // Sidebar list
+                const li = document.createElement('li');
+                li.textContent = project.name;
+                li.className = 'cursor-pointer hover:bg-gray-700 p-2 rounded';
+                li.addEventListener('click', () => loadProjectView(project.id));
+                projectList.appendChild(li);
+
+                // Home cards
+                const card = document.createElement('div');
+                card.className = 'bg-white p-4 rounded shadow project-card';
+                card.innerHTML = `
+                    <h3 class="text-xl font-bold mb-2">${project.name}</h3>
+                    <p class="text-gray-600 mb-4">${project.description || 'No description available.'}</p>
+                    <p class="text-sm text-gray-500">Tasks: ${project.tasks.length}</p>
+                    <img src="https://placehold.co/400x200" alt="Visual representation of a project workspace with charts, notes, and team collaboration icons in a modern office setting with blue and white color scheme" class="w-full h-32 object-cover rounded mb-4" />
+                    <button class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded" onclick="loadProjectView(${project.id})">View Details</button>
+                `;
+                projectCards.appendChild(card);
+            });
+        }
+
+        // Load project view
+        function loadProjectView(id) {
+            currentProjectId = id;
+            const project = projects.find(p => p.id == id);
+            document.getElementById('projectTitle').textContent = project.name;
+            document.getElementById('projectDesc').textContent = project.description || 'No description.';
+            document.getElementById('homeView').classList.add('hidden');
+            document.getElementById('projectView').classList.remove('hidden');
+            renderTasks(project.tasks);
+        }
+
+        // Render tasks with drag and drop
+        function renderTasks(tasks) {
+            const todo = document.getElementById('todoTasks');
+            const inprogress = document.getElementById('inprogressTasks');
+            const done = document.getElementById('doneTasks');
+            todo.innerHTML = '';
+            inprogress.innerHTML = '';
+            done.innerHTML = '';
+            tasks.forEach(task => {
+                const div = document.createElement('div');
+                div.className = 'bg-gray-50 p-3 rounded task-item';
+                div.draggable = true;
+                div.textContent = task.name;
+                div.dataset.id = task.id;
+                div.addEventListener('dragstart', (e) => dragTask = task.id);
+                div.addEventListener('dblclick', () => {
+                    // Mark as complete or change status on double-click
+                    const statuses = ['todo', 'inprogress', 'done'];
+                    const currentIndex = statuses.indexOf(task.status);
+                    task.status = statuses[(currentIndex + 1) % 3];
+                    const project = projects.find(p => p.tasks.some(t => t.id == task.id));
+                    saveData();
+                    showNotification('Task updated!');
+                    loadProjectView(project.id);
+                });
+                if (task.status === 'todo') todo.appendChild(div);
+                else if (task.status === 'inprogress') inprogress.appendChild(div);
+                else done.appendChild(div);
+            });
+
+            // Drag and drop handlers
+            ['todoTasks', 'inprogressTasks', 'doneTasks'].forEach(columnId => {
+                const column = document.getElementById(columnId);
+                column.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    column.classList.add('drag-over');
+                });
+                column.addEventListener('dragleave', () => column.classList.remove('drag-over'));
+                column.addEventListener('drop', (e) => {
+                    const statusMap = { 'todoTasks': 'todo', 'inprogressTasks': 'inprogress', 'doneTasks': 'done' };
+                    const project = projects.find(p => p.tasks.some(t => t.id == dragTask));
+                    const task = project.tasks.find(t => t.id == dragTask);
+                    task.status = statusMap[columnId];
+                    column.classList.remove('drag-over');
+                    saveData();
+                    showNotification('Task moved!');
+                    loadProjectView(project.id);
+                });
+            });
+        }
+
+        // Search functionality
+        document.getElementById('searchBtn').addEventListener('click', () => toggleModal('searchModal', true));
+        document.getElementById('closeSearchBtn').addEventListener('click', () => toggleModal('searchModal', false));
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const results = [];
+            projects.forEach(project => {
+                project.tasks.forEach(task => {
+                    if (task.name.toLowerCase().includes(query)) {
+                        results.push({ project: project.name, task: task.name, status: task.status });
+                    }
+                });
+            });
+            const searchResults = document.getElementById('searchResults');
+            searchResults.innerHTML = '';
+            results.forEach(result => {
+                const div = document.createElement('div');
+                div.className = 'p-2 bg-gray-100 rounded';
+                div.innerHTML = `<strong>${result.task}</strong> in ${result.project} (${result.status})`;
+                searchResults.appendChild(div);
+            });
+        });
+
+        // Filter functionality
+        document.getElementById('filterBtn').addEventListener('click', () => {
+            const status = prompt('Enter status to filter (todo, inprogress, done):');
+            if (status && ['todo', 'inprogress', 'done'].includes(status)) {
+                const filteredTasks = [];
+                projects.forEach(project => {
+                    project.tasks.forEach(task => {
+                        if (task.status === status) filteredTasks.push({ project: project.name, task: task.name });
+                    });
+                });
+                alert(`Filtered tasks: ${filteredTasks.map(t => t.task).join(', ')}`);
+            }
+        });
+
+        // Initial load
+        loadProjects();
+    </script>
+</body>
+</html>
+</content>
+</create_file>
